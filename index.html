@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Simulation des parcours marchand, livreur et client. WhatsApp est la coque sociale, l'app est l'OS commande et livraison.">
+<title>App marchands-livreurs — simulation des parcours</title>
+<style>
+  :root {
+    --green: #0B6E4F; --green-2: #0E8A63; --green-ink: #063D2C; --green-soft: #E7F5EF;
+    --sand: #F5E6C8; --paper: #FBF6EE; --ink: #1C1915; --muted: #5E564C; --line: #E0D0B0;
+    --card: #FFFCF7; --amber: #A86B1E; --shadow: 0 16px 40px rgba(28, 25, 21, .12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background: radial-gradient(900px 280px at 0% -10%, #fff 0%, transparent 55%), var(--sand);
+    line-height: 1.45;
+  }
+  body.is-pres { overflow: hidden; }
+  button, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, select:focus-visible { outline: 3px solid var(--green-2); outline-offset: 2px; }
+  .wrap {
+    max-width: 1140px; margin: 0 auto; padding: 18px 16px 28px;
+    min-height: 100%; display: flex; flex-direction: column;
+  }
+  body.is-pres .wrap { height: 100%; min-height: 0; padding-bottom: 0; }
+  body.is-pres footer.note { display: none; }
+  header.top { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; flex: none; }
+  .eyebrow { margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; color: var(--green); font-weight: 700; }
+  h1 { margin: 0; font-size: clamp(1.35rem, 2.4vw, 1.85rem); line-height: 1.15; color: var(--green-ink); }
+  .position { margin: 6px 0 0; font-size: 1.02rem; }
+  .slide {
+    background: #fff; border: 1px solid var(--line); border-radius: 20px;
+    padding: clamp(16px, 3vw, 28px); box-shadow: var(--shadow);
+  }
+  body.is-pres .slide {
+    height: 100%; min-height: 0; max-height: 100%;
+    overflow: auto; overscroll-behavior: contain;
+  }
+  .slide h2 { margin: 0 0 6px; font-size: clamp(1.3rem, 2vw, 1.7rem); color: var(--green-ink); }
+  .kicker { margin: 0 0 14px; color: var(--muted); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card.green { background: var(--green); color: #fff; border-color: var(--green); }
+  .card.green p, .card.green li { color: #F5E6C8; }
+  .card.green h3 { color: #fff; }
+  .card ul, .slide ul { margin: 8px 0 0; padding-left: 1.1rem; }
+  .card li + li { margin-top: 4px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--sand); color: var(--green-ink); border-radius: 999px; padding: 3px 8px; margin-bottom: 6px; }
+  .card.green .tag { background: rgba(255,255,255,.18); color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 12px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; color: var(--green); }
+  pre.ascii { margin: 0; overflow: auto; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.35; background: var(--ink); color: var(--sand); padding: 14px 16px; border-radius: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0; }
+  .step { display: grid; grid-template-columns: 36px 1fr; gap: 10px; align-items: start; background: var(--paper); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--line); }
+  .num { width: 36px; height: 36px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; font-weight: 800; }
+  .step b { display: block; }
+  .step span { color: var(--muted); font-size: .92rem; }
+  a.linkish { display: inline-block; text-decoration: none; }
+  .linkish { margin-top: 14px; border: 0; background: var(--green); color: #fff; border-radius: 999px; padding: 10px 14px; font-weight: 700; }
+  .arch { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .chain { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; justify-content: center; }
+  .node { background: #fff; border: 2px solid var(--green); border-radius: 14px; padding: 10px 12px; min-width: 120px; text-align: center; font-weight: 800; }
+  .node small { display: block; font-weight: 600; color: var(--muted); margin-top: 4px; }
+  .node.flutter { background: var(--green); color: #fff; min-width: 180px; }
+  .node.flutter small { color: var(--sand); }
+  .node.user { border-style: dashed; background: var(--sand); }
+  .arr { align-self: center; font-weight: 800; color: var(--green); font-size: 1.2rem; }
+  .side-note { color: var(--muted); font-size: .92rem; text-align: center; max-width: 680px; }
+  .mods { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .mods span { background: var(--green-soft); color: var(--green-ink); border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 700; }
+  .cost { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px; }
+  .big { font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 4px 0; color: var(--green); font-weight: 800; line-height: 1; }
+
+  .deck { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .deck[hidden] { display: none !important; }
+  body.is-pres .deck > .slide {
+    height: 100%; min-height: 0; max-height: 100%;
+    overflow: auto; overscroll-behavior: contain;
+  }
+  #view-pres {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    padding-bottom: 84px; /* réserve pour la barre fixe */
+  }
+  body.is-pres #view-pres .hint { display: none; }
+  .deck-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; transform: none;
+    z-index: 40; width: 100%; max-width: none;
+    display: grid; grid-template-columns: minmax(16px, 1fr) 132px minmax(0, 900px) auto 132px minmax(16px, 1fr);
+    gap: 8px; align-items: center;
+    background: rgba(251, 246, 238, .98); border: 0; border-top: 1px solid var(--line);
+    border-radius: 0; padding: 10px 16px; box-shadow: 0 -8px 24px rgba(28, 25, 21, .08);
+    backdrop-filter: blur(8px);
+  }
+  .nav-btn {
+    border: 0; background: var(--green); color: #fff; border-radius: 12px;
+    padding: 10px 14px; font-weight: 700; width: 132px; min-width: 132px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nav-btn:disabled { background: #C9C0B0; cursor: default; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; grid-column: 4; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; border: 0; background: #D9CBB2; padding: 0; }
+  .dot.on { background: var(--green); transform: scale(1.25); }
+  #slide-status {
+    margin: 0; font-size: .85rem; color: var(--muted); text-align: center;
+    grid-column: 3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #btn-prev { grid-column: 2; }
+  #btn-next { grid-column: 5; justify-self: end; }
+  .hint { margin: 8px 0 0; font-size: .82rem; color: var(--muted); text-align: center; }
+  @media (max-width: 720px) {
+    .deck-nav {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    }
+    #slide-status { grid-column: 1 / -1; grid-row: 1; white-space: normal; }
+    .dots { grid-column: 1 / -1; grid-row: 2; }
+    #btn-prev { grid-column: 1; grid-row: 3; width: 100%; min-width: 0; }
+    #btn-next { grid-column: 2; grid-row: 3; width: 100%; min-width: 0; justify-self: stretch; }
+  
+  .deck { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .deck[hidden] { display: none !important; }
+  body.is-pres .deck > .slide {
+    height: 100%; min-height: 0; max-height: 100%;
+    overflow: auto; overscroll-behavior: contain;
+  }
+  #view-pres { padding-bottom: 132px; }
+  }
+  footer.note { margin-top: 18px; color: var(--muted); font-size: .86rem; border-top: 1px solid var(--line); padding-top: 10px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  @media (max-width: 980px) {
+    .grid-3, .grid-2, .cost { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body class="is-pres">
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <p class="eyebrow">Sénégal · Dakar, Thiès, Ziguinchor, Kaolack, Saly et Mbour · Flutter</p>
+      <h1>App marchands-livreurs — simulation des parcours</h1>
+      <p class="position">WhatsApp = coque sociale, l’app = OS commande/livraison.</p>
+    </div>
+  </header>
+
+  <section id="view-pres" role="tabpanel" aria-label="Présentation">
+    <div id="deck-detaille" class="deck" aria-label="Présentation détaillée">
+    <section class="slide" data-title="Vision">
+      <h2>Vision : WhatsApp et l’app</h2>
+      <p class="kicker">On ne remplace pas le chat. On rend la commande et la course plus simples qu’un message plus un appel tchak-tchak.</p>
+      <div class="grid-2">
+        <article class="card">
+          <span class="tag">Coque sociale</span>
+          <h3>WhatsApp</h3>
+          <ul>
+            <li>Discuter, négocier, relancer.</li>
+            <li>Boutons, listes, audio, statuts livré / lu.</li>
+            <li>Le marchand et le client y sont déjà.</li>
+          </ul>
+        </article>
+        <article class="card green">
+          <span class="tag">Système</span>
+          <h3>App Flutter</h3>
+          <ul>
+            <li>Photo de la carte, commande guidée.</li>
+            <li>QR course, états, attribution.</li>
+            <li>Hors-ligne, Wave et Orange Money.</li>
+          </ul>
+        </article>
+      </div>
+      <table>
+        <thead><tr><th>Besoin</th><th>WhatsApp</th><th>App</th></tr></thead>
+        <tbody>
+          <tr><td>Discuter</td><td>Oui</td><td>Non — on ne remplace pas le chat</td></tr>
+          <tr><td>Catalogue snack</td><td>Partiel</td><td>Photo de la carte + affichage</td></tr>
+          <tr><td>Commande sans texte libre</td><td>Boutons API</td><td>Écrans équivalents</td></tr>
+          <tr><td>Livreur + attribution</td><td>Non</td><td>QR course et états</td></tr>
+          <tr><td>Paiement</td><td>Lien parfois</td><td>Wave / OM intégré</td></tr>
+          <tr><td>Hors-ligne</td><td>Non</td><td>File locale + sync</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="slide" data-title="Flux global" hidden>
+      <h2>Flux global</h2>
+      <p class="kicker">Les trois rôles parlent sur WhatsApp. La logique (catalogue, matching, états, paiement) est dans l’app.</p>
+      <pre class="ascii">  CLIENT                         MARCHAND                        LIVREUR
+     |                              |                               |
+     |  (chat / statut WA)          |  (catalogue / alertes WA)     |  (statut course WA)
+     v                              v                               v
++---------+                   +---------+                     +---------+
+|WhatsApp |&lt;---- Meta Cloud API / templates / boutons -------&gt;|WhatsApp |
++----+----+                   +----+----+                     +----+----+
+     |                             |                               |
+     | deep link / QR              | photo, commandes, QR          | scan QR
+     v                             v                               v
++----------------------------------------------------------------------+
+|                         APP FLUTTER (OS)                             |
+|  catalogue · commande guidée · matching · états · hors-ligne · pay  |
++-------------------------------+--------------------------------------+
+                                |
+              +-----------------+-----------------+
+              v                 v                 v
+         Backend           Wave / OM         (stockage
+         auth/sync/push    checkout           médias)</pre>
+    </section>
+
+    <section class="slide" data-title="Trois QR" hidden>
+      <h2>Trois types de QR</h2>
+      <p class="kicker">Un QR n’est pas la livraison. C’est une entrée dans le réseau : qui est relié à qui, et pour quoi. Priorité MVP : A.</p>
+      <div class="grid-3">
+        <article class="card green">
+          <span class="tag">Priorité MVP</span>
+          <h3>A · Course</h3>
+          <p>Marchand ↔ livreur. Cette livraison-ci : point de remise, commande, montant. Vie courte, pour éviter les scans morts.</p>
+          <p>Effet : lie la course et attribue le livreur. Sans compte : inscription par téléphone, puis association.</p>
+        </article>
+        <article class="card">
+          <span class="tag">Réseau</span>
+          <h3>B · Invitation livreur</h3>
+          <p>Livreur → livreur. « Rejoins pour avoir des courses. » Réutilisable, plus durable.</p>
+          <p>Effet : onboard, parrain tracé. Pas besoin d’une course en cours.</p>
+        </article>
+        <article class="card">
+          <span class="tag">Acquisition</span>
+          <h3>C · Boutique / acheteur</h3>
+          <p>Vers le client. Ouvre le catalogue (photo, puis audio) sans compte lourd.</p>
+          <p>Effet : commander au scan, utile si l’écriture est un frein.</p>
+        </article>
+      </div>
+      <p class="kicker" style="margin-top:12px">Le scan lit un identifiant. Le backend route vers le bon marchand ou la bonne course — pas un numéro WhatsApp unique partagé chez Meta. Hors-ligne, le scan peut attendre en file.</p>
+    </section>
+
+    <section class="slide" data-title="Parcours marchand" hidden>
+      <h2>Parcours marchand snack</h2>
+      <p class="kicker">Chez Awa, Médina. Une photo de la carte entière — pas de détection des plats. Gain visé : publier en moins de deux minutes.</p>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><b>Photo carte menu</b><span>La carte papier devient l’offre. Compression, file si pas de réseau.</span></div></div>
+        <div class="step"><div class="num">2</div><div><b>Catalogue publié</b><span>Visible dans l’app. Le lien boutique (QR C) peut partir sur WhatsApp.</span></div></div>
+        <div class="step"><div class="num">3</div><div><b>Commandes guidées</b><span>Articles structurés ou audio. Accepter / refuser. Pas de paragraphe libre.</span></div></div>
+        <div class="step"><div class="num">4</div><div><b>QR course (A)</b><span>Partagé au livreur. Expire vite. Attribution du scan.</span></div></div>
+        <div class="step"><div class="num">5</div><div><b>Wave ou Orange Money</b><span>Statut payé sur la commande. Reçu visible.</span></div></div>
+      </div>
+      <a class="linkish" href="https://igiroux.github.io/app-marchands-emulateur-438382a365/#marchand" target="_blank" rel="noopener">Ouvrir ce parcours dans le simulateur</a>
+    </section>
+
+    <section class="slide" data-title="Parcours livreur" hidden>
+      <h2>Parcours livreur</h2>
+      <p class="kicker">Moussa, tchak-tchak. Il ne reçoit pas un appel à chaque course : il scanne le QR A et fait avancer des états clairs.</p>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><b>Scan QR</b><span>COURSE-A-1842. Si pas de compte : téléphone, puis lien.</span></div></div>
+        <div class="step"><div class="num">2</div><div><b>Course liée</b><span>Marchand Chez Awa + cette commande. Qui a partagé est connu.</span></div></div>
+        <div class="step"><div class="num">3</div><div><b>À récupérer</b><span>Point de remise Médina. Le marchand et Fatou sont prévenus.</span></div></div>
+        <div class="step"><div class="num">4</div><div><b>En route</b><span>Vers Sacré-Cœur 3. Statut WhatsApp (modèle utilitaire) + app.</span></div></div>
+        <div class="step"><div class="num">5</div><div><b>Livré</b><span>Fin de course. L’état est tracé, pas seulement dit au téléphone.</span></div></div>
+      </div>
+      <a class="linkish" href="https://igiroux.github.io/app-marchands-emulateur-438382a365/#livreur" target="_blank" rel="noopener">Ouvrir ce parcours dans le simulateur</a>
+    </section>
+
+    <section class="slide" data-title="Parcours client" hidden>
+      <h2>Parcours client</h2>
+      <p class="kicker">Fatou commande sans rédiger un long message. Le téléphone est l’identifiant.</p>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><b>QR boutique (C)</b><span>Ouvre Chez Awa sans créer un compte lourd.</span></div></div>
+        <div class="step"><div class="num">2</div><div><b>Catalogue</b><span>La photo de la carte, prix en FCFA.</span></div></div>
+        <div class="step"><div class="num">3</div><div><b>Commander · boutons / listes</b><span>Plat, boisson, quantité. Équivalent des messages interactifs Meta.</span></div></div>
+        <div class="step"><div class="num">4</div><div><b>Option audio</b><span>Un vocal si elle préfère. Pas de transcription en MVP.</span></div></div>
+        <div class="step"><div class="num">5</div><div><b>Wave / Orange Money</b><span>Checkout, puis confirmation.</span></div></div>
+        <div class="step"><div class="num">6</div><div><b>Suivi course</b><span>À récupérer, en route, livré — dans l’app et en message de statut.</span></div></div>
+      </div>
+      <a class="linkish" href="https://igiroux.github.io/app-marchands-emulateur-438382a365/#client" target="_blank" rel="noopener">Ouvrir ce parcours dans le simulateur</a>
+    </section>
+
+    <section class="slide" data-title="Hors-ligne" hidden>
+      <h2>Hors-ligne et synchronisation</h2>
+      <p class="kicker">La data coupe souvent. L’écran avance quand même. WhatsApp n’est pas le mode hors-ligne du métier.</p>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><b>Action locale</b><span>Photo, scan QR, acceptation, changement d’état.</span></div></div>
+        <div class="step"><div class="num">2</div><div><b>File sur le téléphone</b><span>Rien n’est perdu. L’utilisateur voit un badge hors-ligne.</span></div></div>
+        <div class="step"><div class="num">3</div><div><b>Retour réseau</b><span>Sync idempotente vers le backend : pas de doublon.</span></div></div>
+        <div class="step"><div class="num">4</div><div><b>Ensuite seulement</b><span>Push et modèles Meta (statut, boutons). Le journal WhatsApp se remplit d’un coup.</span></div></div>
+      </div>
+      <p class="kicker" style="margin-top:12px">Dans le simulateur : activez « Hors ligne », avancez dans un parcours, puis revenez en ligne.</p>
+    </section>
+
+    <section class="slide" data-title="Coût API" hidden>
+      <h2>Coût WhatsApp API</h2>
+      <p class="kicker">Rappel court — hypothèse utilitaire, pas un devis. Groupe tarifaire Rest of Africa.</p>
+      <div class="cost">
+        <article class="card">
+          <span class="tag">Hypothèse</span>
+          <p>50 commandes / jour / marchand × 2 messages sortants ≈ 100 messages / jour.</p>
+          <p class="big">~6&nbsp;000 FCFA</p>
+          <p>par mois et par marchand · environ 200 FCFA / jour · ~2 FCFA le message utilitaire.</p>
+        </article>
+        <article class="card">
+          <h3>À retenir</h3>
+          <ul>
+            <li>Entrants clients : 0.</li>
+            <li>Marketing : ~13 FCFA — à éviter pour un simple statut de course.</li>
+            <li>Depuis le 1er oct. 2026 : le « service » dans la fenêtre 24 h est au tarif utilitaire, avec 1&nbsp;000 messages gratuits / numéro / mois.</li>
+            <li>Un numéro par marchand. Pas de numéro Meta partagé.</li>
+            <li>La SIM n’est pas facturée par Meta.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Architecture" hidden>
+      <h2>Architecture (mini-schéma)</h2>
+      <p class="kicker">Chaîne de la simulation. En production, l’app orchestre le backend, Meta et Wave en parallèle : ce n’est pas un tuyau unique, et WhatsApp ne porte pas la logique.</p>
+      <div class="arch">
+        <div class="chain">
+          <div class="node flutter">App Flutter<small>OS commande / livraison</small></div>
+          <div class="arr" aria-hidden="true">↔</div>
+          <div class="node">Backend<small>Auth · données temps réel · push</small></div>
+          <div class="arr" aria-hidden="true">↔</div>
+          <div class="node">Meta Cloud API<small>templates · boutons · webhooks</small></div>
+          <div class="arr" aria-hidden="true">↔</div>
+          <div class="node">Wave / OM<small>checkout</small></div>
+        </div>
+        <div class="arr" aria-hidden="true">↕</div>
+        <div class="node user">Utilisateur WhatsApp<small>à côté · messages, boutons, statuts</small></div>
+        <div class="mods">
+          <span>Compte téléphone</span>
+          <span>Catalogue photo</span>
+          <span>Commande guidée + audio</span>
+          <span>QR A / B / C</span>
+          <span>États de course</span>
+          <span>File hors-ligne</span>
+        </div>
+        <p class="side-note">Rôles dans l’app : marchand, livreur, client. L’app appelle Meta et Wave. Les jetons restent côté serveur.</p>
+      </div>
+      <a class="linkish" href="https://igiroux.github.io/app-marchands-emulateur-438382a365/#marchand" target="_blank" rel="noopener">Passer au simulateur</a>
+    </section>
+
+    </div>
+
+    <div class="deck-nav">
+      <button type="button" class="nav-btn" id="btn-prev">Précédent</button>
+      <p id="slide-status" aria-live="polite"></p>
+      <div class="dots" id="dots"></div>
+      <button type="button" class="nav-btn" id="btn-next">Suivant</button>
+    </div>
+    <p class="hint">Flèches du clavier · glisser sur mobile · le schéma ASCII défile sur les petits écrans.</p>
+  </section>
+</div>
+<script>
+(function () {
+  "use strict";
+  var slides = [], titles = [], current = 0;
+  function renderSlides() {
+    slides.forEach(function (s, i) { s.hidden = i !== current; });
+    document.getElementById("btn-prev").disabled = current === 0;
+    var next = document.getElementById("btn-next");
+    next.disabled = current === slides.length - 1;
+    next.textContent = "Suivant";
+    document.getElementById("slide-status").textContent = "Diapositive " + (current + 1) + " sur " + slides.length + " — " + titles[current];
+    document.querySelectorAll("#dots .dot").forEach(function (d, i) { d.classList.toggle("on", i === current); });
+  }
+  function goSlide(delta) {
+    var n = current + delta;
+    if (n < 0 || n >= slides.length) return;
+    current = n;
+    renderSlides();
+  }
+  function rebuildDots() {
+    document.getElementById("dots").innerHTML = titles.map(function (t, i) {
+      return '<button type="button" class="dot" data-slide="' + i + '" aria-label="' + t + '" title="' + t + '"></button>';
+    }).join("");
+  }
+  function init() {
+    slides = Array.prototype.slice.call(document.querySelectorAll("#deck-detaille .slide"));
+    titles = slides.map(function (s) { return s.getAttribute("data-title"); });
+    document.getElementById("btn-prev").addEventListener("click", function () { goSlide(-1); });
+    document.getElementById("btn-next").addEventListener("click", function () { goSlide(1); });
+    document.getElementById("dots").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-slide]");
+      if (!b) return;
+      current = Number(b.getAttribute("data-slide"));
+      renderSlides();
+    });
+    var touchX = null;
+    var pres = document.getElementById("view-pres");
+    pres.addEventListener("touchstart", function (e) { touchX = e.changedTouches[0].clientX; }, { passive: true });
+    pres.addEventListener("touchend", function (e) {
+      if (touchX === null || e.target.closest("pre")) { touchX = null; return; }
+      var dx = e.changedTouches[0].clientX - touchX;
+      if (dx < -50) goSlide(1); else if (dx > 50) goSlide(-1);
+      touchX = null;
+    }, { passive: true });
+    document.addEventListener("keydown", function (e) {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown") { e.preventDefault(); goSlide(1); }
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") { e.preventDefault(); goSlide(-1); }
+      else if (e.key === "Home") { e.preventDefault(); current = 0; renderSlides(); }
+      else if (e.key === "End") { e.preventDefault(); current = slides.length - 1; renderSlides(); }
+    });
+    rebuildDots();
+    renderSlides();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+</body>
+</html>
